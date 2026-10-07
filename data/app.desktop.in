@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Movebreak
+GenericName=Break Reminder
+Comment=Evidence-based reminders to move, rest your eyes and stretch
+Exec=@EXEC@
+Icon=@APP_ID@
+Terminal=false
+Categories=Utility;GTK;GNOME;
+Keywords=break;rest;stretch;walk;eyes;health;ergonomics;sitting;timer;posture;
+StartupNotify=true
+X-GNOME-UsesNotifications=true

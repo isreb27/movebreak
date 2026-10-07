@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    name: Lint, type-check and unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: python -m pip install pytest ruff mypy
+      - name: Ruff
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Mypy
+        run: mypy
+      - name: Unit tests
+        run: pytest -m "not gui"
+
+  gui-smoke:
+    name: GUI smoke tests (GTK 4 + libadwaita, headless)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GTK, libadwaita and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 python3-pytest \
+            xvfb xauth dbus-x11 adwaita-icon-theme
+      - name: Smoke tests
+        env:
+          NO_AT_BRIDGE: "1"
+          GTK_A11Y: none
+        run: xvfb-run -a dbus-run-session -- /usr/bin/python3 -m pytest -m gui -v
+
+  flatpak:
+    name: Flatpak build
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: movebreak.flatpak
+          manifest-path: build-aux/flatpak/io.github.isreb27.Movebreak.json
+          cache-key: flatpak-builder-${{ github.sha }}

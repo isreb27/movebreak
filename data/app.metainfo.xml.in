@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 The Movebreak Authors -->
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+<component type="desktop-application">
+  <id>@APP_ID@</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Movebreak</name>
+  <summary>Evidence-based break reminders</summary>
+  <description>
+    <p>
+      Movebreak reminds you to get up, walk, rest your eyes and stretch while you work at a
+      computer. Its defaults follow the research on prolonged sitting: a short walk every
+      30 minutes, 20-second eye breaks, and an hourly stretch.
+    </p>
+    <ul>
+      <li>Timers count only the time you actually spend at the computer: idle time, a
+        locked screen and suspend never trigger stale reminders</li>
+      <li>Reminders due close together are combined, and a walk also counts as an eye break</li>
+      <li>Answer from the notification with Done, Snooze or Skip</li>
+      <li>Add your own activities, such as push-ups, each with its own schedule</li>
+      <li>Profiles let you switch to a lighter schedule for a busy week</li>
+      <li>Pause for a while, or until you resume, from the window or the command line</li>
+    </ul>
+    <p>Movebreak is not medical advice. If you have persistent pain, see a physiotherapist.</p>
+  </description>
+  <developer id="io.github.isreb27">
+    <name>isreb27</name>
+  </developer>
+  <launchable type="desktop-id">@APP_ID@.desktop</launchable>
+  <url type="homepage">https://github.com/isreb27/movebreak</url>
+  <url type="bugtracker">https://github.com/isreb27/movebreak/issues</url>
+  <url type="vcs-browser">https://github.com/isreb27/movebreak</url>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+    <control>touch</control>
+  </supports>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>break</keyword>
+    <keyword>ergonomics</keyword>
+    <keyword>health</keyword>
+    <keyword>stretch</keyword>
+  </keywords>
+  <releases>
+    <release version="0.1.0" date="2026-10-07">
+      <description>
+        <p>First release: evidence-based activities, custom activities, profiles, pause,
+          idle-aware timers and the movebreak command-line tool.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,31 @@
+{
+  "id": "io.github.isreb27.Movebreak",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "50",
+  "sdk": "org.gnome.Sdk",
+  "command": "movebreak",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--talk-name=org.gnome.Mutter.IdleMonitor",
+    "--talk-name=org.gnome.ScreenSaver"
+  ],
+  "modules": [
+    {
+      "name": "movebreak",
+      "buildsystem": "simple",
+      "build-commands": [
+        "python3 scripts/install.py --flatpak --prefix=${FLATPAK_DEST}"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../..",
+          "skip": [".git", ".flatpak-builder", "build-dir", "repo", ".venv", "venv"]
+        }
+      ]
+    }
+  ]
+}

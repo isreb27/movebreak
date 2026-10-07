@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest an idea or an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence (for new default activities or timings)
+      description: Movebreak's defaults follow published research; links help a lot.

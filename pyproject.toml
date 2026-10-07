@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "movebreak"
+version = "0.1.0"
+description = "Evidence-based reminders to move, rest your eyes and stretch while you work at a computer"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "isreb27" }]
+keywords = ["gnome", "gtk", "libadwaita", "break reminder", "ergonomics", "health", "sedentary"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications :: GTK",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Utilities",
+]
+# PyGObject, GTK 4 and libadwaita come from the operating system (or the
+# Flatpak runtime). They are deliberately not listed here: installing
+# PyGObject from PyPI needs compilers and development headers.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+
+[project.scripts]
+movebreak = "movebreak.main:main"
+
+[project.urls]
+Homepage = "https://github.com/isreb27/movebreak"
+Issues = "https://github.com/isreb27/movebreak/issues"
+Changelog = "https://github.com/isreb27/movebreak/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/movebreak"]
+
+# ---------------------------------------------------------------------------
+# Tooling
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "N",   # pep8-naming
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "RUF001", # ambiguous unicode in strings: we use typographic characters on purpose
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["movebreak"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+packages = ["movebreak"]
+warn_unreachable = true
+
+# PyGObject ships no type information, so everything that touches GTK or
+# D-Bus is type-checked more loosely than the pure-Python core.
+[[tool.mypy.overrides]]
+module = ["gi", "gi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "movebreak.application",
+    "movebreak.desktop.*",
+    "movebreak.doctor",
+    "movebreak.main",
+    "movebreak.ui.*",
+]
+disallow_subclassing_any = false
+disallow_untyped_calls = false
+warn_return_any = false
+disallow_any_generics = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "scripts"]
+addopts = "-ra --strict-markers"
+markers = ["gui: needs GTK 4, libadwaita, a display and a D-Bus session (run with xvfb-run and dbus-run-session)"]

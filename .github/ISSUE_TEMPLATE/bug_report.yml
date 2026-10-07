@@ -1,0 +1,44 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to report a problem.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `movebreak doctor quick`
+      description: Run it in a terminal and paste the result.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install Movebreak?
+      options:
+        - scripts/install.py (user install)
+        - Flatpak
+        - From source (--dev)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution and version
+      placeholder: Ubuntu 26.04, Fedora 45…
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Run `MOVEBREAK_LOG_LEVEL=debug movebreak` and paste anything relevant.
+      render: text
