@@ -9,6 +9,7 @@ import os
 import sys
 
 from movebreak import config, i18n
+from movebreak.process_name import set_process_name
 
 _MISSING_DEPENDENCIES = """\
 Movebreak needs PyGObject with GTK 4 and libadwaita {minimum}+ ({error}).
@@ -27,6 +28,7 @@ def main(argv: list[str] | None = None) -> int:
         format="%(levelname)s %(name)s: %(message)s",
     )
     i18n.setup()
+    set_process_name(config.APP_NAME)  # "Movebreak" instead of "python3" in System Monitor
     minimum = ".".join(map(str, config.MIN_LIBADWAITA))
     try:
         import gi

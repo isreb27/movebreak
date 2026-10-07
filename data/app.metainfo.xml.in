@@ -50,6 +50,12 @@
     <keyword>stretch</keyword>
   </keywords>
   <releases>
+    <release version="0.2.0" date="2026-10-07">
+      <description>
+        <p>Optional top-bar icon with the next break and a pause menu. The process now
+          shows up as "Movebreak" in system monitors.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-07">
       <description>
         <p>First release: evidence-based activities, custom activities, profiles, pause,

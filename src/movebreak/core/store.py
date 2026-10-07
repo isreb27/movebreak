@@ -81,6 +81,7 @@ _PREF_ACTIVE_PROFILE = "active_profile"
 _PREF_PAUSE = "pause"
 _PREF_SCHEDULER = "scheduler"
 _PREF_AUTOSTART = "autostart"
+_PREF_TRAY_ICON = "tray_icon"
 
 
 class StoreError(Exception):
@@ -562,6 +563,13 @@ class Store:
 
     def set_autostart_requested(self, enabled: bool) -> None:
         self._set_pref(_PREF_AUTOSTART, enabled)
+
+    def tray_icon_enabled(self) -> bool:
+        """Whether to show the top-bar icon (on by default)."""
+        return bool(self._get_pref(_PREF_TRAY_ICON, True))
+
+    def set_tray_icon_enabled(self, enabled: bool) -> None:
+        self._set_pref(_PREF_TRAY_ICON, enabled)
 
     # ------------------------------------------------------------------
     # History

@@ -173,3 +173,9 @@ def test_history_counts(store: Store) -> None:
     assert counts[Outcome.DONE] == 1
     assert counts[Outcome.SKIPPED] == 1
     assert counts[Outcome.CANCELLED] == 0
+
+
+def test_tray_icon_preference(store: Store) -> None:
+    assert store.tray_icon_enabled()
+    store.set_tray_icon_enabled(False)
+    assert not store.tray_icon_enabled()

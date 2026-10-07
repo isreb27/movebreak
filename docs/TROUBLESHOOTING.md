@@ -123,7 +123,30 @@ doctor quick`, then open Quick Settings: Movebreak should be listed with the tex
 
 Native installs are never listed there; that is expected.
 
+## Top-bar icon
+
+GNOME has no tray of its own. The icon needs the GNOME Shell extension
+"AppIndicator and KStatusNotifierItem Support", which Ubuntu enables by default. On
+Fedora, install it from GNOME Extensions (or `sudo dnf install
+gnome-shell-extension-appindicator`), then log out and back in.
+
+Manual check that a host is running:
+
+```sh
+gdbus call --session --dest org.kde.StatusNotifierWatcher \
+  --object-path /StatusNotifierWatcher \
+  --method org.freedesktop.DBus.Properties.Get \
+  org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered
+```
+
+`(<true>,)` means icons can be shown. Turn Movebreak's icon on or off in Preferences ›
+Show Icon in Top Bar.
+
 ## Common problems
+
+**It shows as "python3" in `ps aux`.** `ps aux` shows the full command line
+(`python3 -m movebreak`); System Monitor, `top` and `ps -o comm` show **Movebreak**. To
+find it: `pgrep -a Movebreak`.
 
 **"Movebreak is not running" from the command line.** Start it with
 `movebreak --background` or open it from the app grid.

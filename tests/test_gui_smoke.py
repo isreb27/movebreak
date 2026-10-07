@@ -157,6 +157,30 @@ def test_window_editor_profiles_and_reminder_flow(isolated_home: Path) -> None:
     assert status == 0
 
 
+def _wait_for_name(name: str, *, owned: bool, timeout_s: float = 15.0) -> bool:
+    """Wait until ``name`` is (or is no longer) owned on the session bus."""
+    from gi.repository import Gio, GLib
+
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        (has_owner,) = bus.call_sync(
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus",
+            "NameHasOwner",
+            GLib.Variant("(s)", (name,)),
+            None,
+            Gio.DBusCallFlags.NONE,
+            2000,
+            None,
+        ).unpack()
+        if has_owner == owned:
+            return True
+        time.sleep(0.05)
+    return False
+
+
 @skip_without_gui
 def test_command_line_talks_to_the_running_instance(isolated_home: Path) -> None:
     env = {**os.environ, "PYTHONPATH": str(SRC)}
@@ -174,6 +198,8 @@ def test_command_line_talks_to_the_running_instance(isolated_home: Path) -> None
     not_running = movebreak("status")
     assert not_running.returncode == 1
     assert "not running" in not_running.stderr
+    # That short-lived process owned the app's bus name; let the bus release it.
+    assert _wait_for_name("io.github.isreb27.Movebreak", owned=False)
 
     service = subprocess.Popen(
         [sys.executable, "-m", "movebreak", "--background"],
@@ -183,11 +209,13 @@ def test_command_line_talks_to_the_running_instance(isolated_home: Path) -> None
         text=True,
     )
     try:
-        for _attempt in range(50):
-            status = movebreak("status")
-            if status.returncode == 0:
-                break
-            time.sleep(0.2)
+        # Wait on the bus instead of polling with `movebreak status`: each probe
+        # would race the starting service for the application's bus name.
+        if not _wait_for_name("io.github.isreb27.Movebreak", owned=True):
+            service.terminate()
+            _out, service_err = service.communicate(timeout=10)
+            pytest.fail(f"the service never registered:\n{service_err}")
+        status = movebreak("status")
         assert status.returncode == 0, status.stderr
         assert "Profile: Recommended" in status.stdout
         assert "Walk break" in status.stdout
@@ -213,3 +241,112 @@ def test_command_line_talks_to_the_running_instance(isolated_home: Path) -> None
     finally:
         service.terminate()
         service.wait(timeout=10)
+
+
+FAKE_TRAY_HOST = """
+from gi.repository import Gio, GLib
+XML = '''<node><interface name="org.kde.StatusNotifierWatcher">
+  <method name="RegisterStatusNotifierItem"><arg type="s" direction="in"/></method>
+  <property name="IsStatusNotifierHostRegistered" type="b" access="read"/>
+</interface></node>'''
+info = Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0]
+
+def call(conn, sender, path, iface, method, params, invocation):
+    print("REGISTERED", sender, params.unpack()[0], flush=True)
+    invocation.return_value(None)
+
+def get(conn, sender, path, iface, prop):
+    return GLib.Variant("b", True)
+
+def acquired(conn, name):
+    conn.register_object("/StatusNotifierWatcher", info, call, get, None)
+    print("READY", flush=True)
+
+Gio.bus_own_name(Gio.BusType.SESSION, "org.kde.StatusNotifierWatcher",
+                 Gio.BusNameOwnerFlags.NONE, None, acquired, None)
+GLib.MainLoop().run()
+"""
+
+
+@skip_without_gui
+def test_top_bar_icon_menu_and_process_name(isolated_home: Path) -> None:
+    from gi.repository import Gio, GLib
+
+    env = {**os.environ, "PYTHONPATH": str(SRC)}
+    host = subprocess.Popen(
+        [sys.executable, "-c", FAKE_TRAY_HOST], stdout=subprocess.PIPE, text=True
+    )
+    app = None
+    try:
+        assert host.stdout is not None
+        assert host.stdout.readline().strip() == "READY"
+        app = subprocess.Popen(
+            [sys.executable, "-m", "movebreak", "--background"],
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        words = host.stdout.readline().split()
+        assert words[0] == "REGISTERED", words
+        sender, item_path = words[1], words[2]
+        assert item_path == "/StatusNotifierItem"
+
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+
+        def call(path: str, interface: str, method: str, args: GLib.Variant | None) -> object:
+            reply = bus.call_sync(
+                sender, path, interface, method, args, None, Gio.DBusCallFlags.NONE, 5000, None
+            )
+            return reply.unpack() if reply is not None else None
+
+        def prop(name: str) -> object:
+            (value,) = call(  # type: ignore[misc]
+                item_path,
+                "org.freedesktop.DBus.Properties",
+                "Get",
+                GLib.Variant("(ss)", ("org.kde.StatusNotifierItem", name)),
+            )
+            return value
+
+        assert prop("Status") == "Active"
+        assert prop("IconName") == "movebreak-walk-symbolic"
+        assert prop("IconPixmap"), "pixmap fallback is rendered"
+        menu_path = prop("Menu")
+
+        _revision, (_root, _props, children) = call(  # type: ignore[misc]
+            menu_path, "com.canonical.dbusmenu", "GetLayout", GLib.Variant("(iias)", (0, -1, []))
+        )
+        labels = {child[1].get("label"): child[0] for child in children}
+        assert any(label and label.startswith("Next:") for label in labels)
+        call(
+            menu_path,
+            "com.canonical.dbusmenu",
+            "Event",
+            GLib.Variant(
+                "(isvu)", (labels["Pause for 30 Minutes"], "clicked", GLib.Variant("s", ""), 0)
+            ),
+        )
+        for _attempt in range(50):
+            if prop("IconName") == "movebreak-paused-symbolic":
+                break
+            time.sleep(0.1)
+        assert prop("IconName") == "movebreak-paused-symbolic"
+
+        status = subprocess.run(
+            [sys.executable, "-m", "movebreak", "status"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert "Paused until" in status.stdout
+
+        comm = Path(f"/proc/{app.pid}/comm").read_text(encoding="utf-8").strip()
+        assert comm == "Movebreak"
+    finally:
+        if app is not None:
+            app.terminate()
+            app.wait(timeout=10)
+        host.terminate()
+        host.wait(timeout=10)

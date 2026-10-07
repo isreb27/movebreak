@@ -41,7 +41,10 @@ see a physiotherapist.
 - **Profiles:** *Recommended*, *Light* and *Eyes first* built in, plus your own. Switch
   to a lighter schedule for a busy week and back again later.
 - **Pause** for 30 minutes, an hour, until tomorrow or until you resume, from the
-  window, the command line or a keyboard shortcut.
+  window, the top-bar icon, the command line or a keyboard shortcut.
+- **Optional top-bar icon** with the next break and a pause menu (Ubuntu shows it out of
+  the box; on Fedora, install the GNOME extension "AppIndicator and KStatusNotifierItem
+  Support").
 - **Private:** no network access, no telemetry. Everything stays in one local file.
 
 ## Install
@@ -93,7 +96,9 @@ flatpak uninstall --user io.github.isreb27.Movebreak   # Flatpak build
 
 ## Usage
 
-Closing the window does not stop the reminders; **Quit** in the main menu does.
+Closing the window does not stop the reminders; **Quit** in the main menu (or in the
+top-bar icon's menu) does. In GNOME System Monitor the running app is listed as
+**Movebreak**.
 
 | Command | What it does |
 | --- | --- |
@@ -125,7 +130,7 @@ you to click a button. A healthy report looks like this:
 ```text
 Movebreak doctor
 
-✓ Versions             Movebreak 0.1.0, Python 3.12.3, GTK 4.14.5, libadwaita 1.5.0, GLib 2.80.0
+✓ Versions             Movebreak 0.2.0, Python 3.12.3, GTK 4.14.5, libadwaita 1.5.0, GLib 2.80.0
 ✓ Session              GNOME on wayland, native install
 ✓ Desktop file         installed: notifications can be shown
 ✓ Idle detection       Mutter IdleMonitor reachable (idle for 0 s)
@@ -133,6 +138,7 @@ Movebreak doctor
 ✓ Do Not Disturb       readable (currently off)
 · Background portal    version 2; status line not used outside Flatpak (…)
 · Start at login       off; turn it on in Preferences. Command: …
+✓ Top-bar icon         tray host available (toggle it in Preferences)
 
 Sending a test notification. Click one of its buttons within 60 s (or press Ctrl+C to stop)…
 ✓ Button “done” clicked: notification buttons work.

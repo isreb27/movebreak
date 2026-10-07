@@ -16,6 +16,7 @@ import logging
 import sys
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from functools import partial
 from pathlib import Path
 
 import gi
@@ -45,6 +46,7 @@ from movebreak.desktop.autostart import Autostart  # noqa: E402
 from movebreak.desktop.dbus import session_bus  # noqa: E402
 from movebreak.desktop.notifier import Notifier  # noqa: E402
 from movebreak.desktop.presence import PresenceMonitor  # noqa: E402
+from movebreak.desktop.tray import MenuEntry, TrayIcon  # noqa: E402
 from movebreak.i18n import _  # noqa: E402
 
 log = logging.getLogger(__name__)
@@ -117,6 +119,7 @@ class MovebreakApplication(Adw.Application):
         self._tick_source = 0
         self._last_status: str | None = None
         self._presence: PresenceMonitor | None = None
+        self.tray: TrayIcon | None = None
         self._doctor_command_line: Gio.ApplicationCommandLine | None = None
         self._doctor_timeout = 0
         self._test_callback: Callable[[str], None] | None = None
@@ -157,6 +160,8 @@ class MovebreakApplication(Adw.Application):
     def do_shutdown(self) -> None:
         if self._presence is not None:
             self._presence.stop()
+        if self.tray is not None:
+            self.tray.stop()
         if self._tick_source:
             GLib.source_remove(self._tick_source)
             self._tick_source = 0
@@ -226,6 +231,9 @@ class MovebreakApplication(Adw.Application):
         if self.bus is not None:
             self._presence = PresenceMonitor(self.bus, self._on_away, self._on_back)
             self._presence.start()
+            self.tray = TrayIcon(self.bus, icons_dir=ICONS_DIR, on_activate=self.activate)
+            self.tray.start()
+            self.refresh_tray()
         self._tick_source = GLib.timeout_add_seconds(TICK_SECONDS, self._on_tick)
         log.info("Reminders running with profile %s", self.store.active_profile().name)
 
@@ -269,6 +277,7 @@ class MovebreakApplication(Adw.Application):
             elif isinstance(event, PauseChanged):
                 self.store.set_pause_state(PauseState(event.paused, event.until))
         self._update_background_status()
+        self.refresh_tray()
         for listener in list(self._listeners):
             listener()
 
@@ -340,6 +349,37 @@ class MovebreakApplication(Adw.Application):
     def send_test_notification(self, callback: Callable[[str], None] | None = None) -> None:
         self._test_callback = callback
         self.notifier.show_test()
+
+    def refresh_tray(self) -> None:
+        """Bring the top-bar icon and its menu up to date."""
+        if self.tray is None:
+            return
+        paused = self.scheduler.paused
+        entries = [MenuEntry(self.status_line()), MenuEntry(None)]
+        if paused:
+            entries.append(MenuEntry(_("Resume"), self.resume))
+        else:
+            for label, minutes in (
+                (_("Pause for 30 Minutes"), 30),
+                (_("Pause for 1 Hour"), 60),
+                (_("Pause Until Tomorrow"), PAUSE_UNTIL_TOMORROW),
+                (_("Pause Until I Resume"), PAUSE_UNTIL_RESUMED),
+            ):
+                entries.append(MenuEntry(label, partial(self._pause_from_tray, minutes)))
+        entries += [
+            MenuEntry(None),
+            MenuEntry(_("Open Movebreak"), self.activate),
+            MenuEntry(_("Quit Movebreak"), self.quit),
+        ]
+        self.tray.update(
+            visible=self.store.tray_icon_enabled(),
+            paused=paused,
+            status_text=self.status_line(),
+            entries=entries,
+        )
+
+    def _pause_from_tray(self, minutes: int) -> None:
+        self.pause(minutes)
 
     def _update_background_status(self) -> None:
         if not config.is_flatpak() or self.bus is None:

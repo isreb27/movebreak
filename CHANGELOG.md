@@ -6,6 +6,19 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
+### Added
+
+- Optional top-bar icon (StatusNotifierItem) showing the next break, with a menu to pause,
+  resume, open or quit. Works with the "AppIndicator and KStatusNotifierItem Support"
+  extension, included in Ubuntu. Toggle it in Preferences.
+- `movebreak doctor` reports whether a top-bar icon host is available.
+
+### Changed
+
+- The process is named "Movebreak" instead of "python3" in GNOME System Monitor and `top`.
+
 ## [0.1.0] - 2026-10-07
 
 ### Added
@@ -28,5 +41,6 @@ All notable changes are documented here. The format follows
 - `movebreak doctor` system checks, including an interactive notification test.
 - User installer that needs no administrator rights, and a Flatpak manifest.
 
-[Unreleased]: https://github.com/isreb27/movebreak/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/isreb27/movebreak/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/isreb27/movebreak/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/isreb27/movebreak/releases/tag/v0.1.0

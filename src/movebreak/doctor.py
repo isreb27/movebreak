@@ -33,6 +33,7 @@ from movebreak.desktop.presence import (
     SCREENSAVER_NAME,
     SCREENSAVER_PATH,
 )
+from movebreak.desktop.tray import WATCHER_NAME, WATCHER_PATH
 from movebreak.i18n import _
 
 if TYPE_CHECKING:
@@ -77,6 +78,7 @@ def run_checks(app: MovebreakApplication) -> list[Check]:
         _check_background_portal(bus),
         _check_notification_portal(bus),
         _check_autostart(app),
+        _check_tray(bus),
         Check(_("Data"), Status.INFO, str(config.database_path())),
     ]
     return checks
@@ -247,6 +249,33 @@ def _check_notification_portal(bus: Gio.DBusConnection) -> Check:
         status = Status.WARN if config.is_flatpak() else Status.INFO
         return Check(_("Notification portal"), status, _("not available"))
     return Check(_("Notification portal"), Status.INFO, _("version {v}").format(v=version))
+
+
+def _check_tray(bus: Gio.DBusConnection) -> Check:
+    name = _("Top-bar icon")
+    try:
+        (registered,) = call_sync(
+            bus,
+            WATCHER_NAME,
+            WATCHER_PATH,
+            "org.freedesktop.DBus.Properties",
+            "Get",
+            GLib.Variant("(ss)", (WATCHER_NAME, "IsStatusNotifierHostRegistered")),
+            "(v)",
+            2000,
+        )
+    except GLib.Error:
+        return Check(
+            name,
+            Status.INFO,
+            _(
+                "no tray host; install the GNOME extension “AppIndicator and "
+                "KStatusNotifierItem Support” to see it (Ubuntu includes it)"
+            ),
+        )
+    if not registered:
+        return Check(name, Status.WARN, _("a tray watcher runs, but no host displays icons"))
+    return Check(name, Status.OK, _("tray host available (toggle it in Preferences)"))
 
 
 def _check_autostart(app: MovebreakApplication) -> Check:

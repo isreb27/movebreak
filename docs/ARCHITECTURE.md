@@ -25,6 +25,7 @@ src/movebreak/
 ├── config.py            APP_ID (single source of truth) and file locations
 ├── doctor.py            `movebreak doctor` system checks
 ├── i18n.py              gettext helpers
+├── process_name.py      shows "Movebreak" instead of "python3" in process lists
 ├── core/                no GTK, no D-Bus: fully unit-tested
 │   ├── models.py        Activity, ActivitySettings, Profile, PlannedActivity, Outcome
 │   ├── presets.py       built-in activities and profiles (the evidence-based defaults)
@@ -35,6 +36,7 @@ src/movebreak/
 ├── desktop/             adapters to GNOME
 │   ├── presence.py      idle and screen-lock detection
 │   ├── notifier.py      reminders as notifications with buttons
+│   ├── tray.py          optional top-bar icon (StatusNotifierItem + dbusmenu)
 │   ├── autostart.py     start at login (autostart file or Background portal)
 │   ├── portal.py        XDG desktop portal calls
 │   └── dbus.py          GDBus helpers
@@ -95,5 +97,6 @@ without touching user data.
 | SQLite instead of GSettings | Profiles are data, not flat keys; no schema compilation; identical native and in Flatpak | Settings are not editable with `gsettings` |
 | Tick every 10 s instead of exact timers | Simple, and makes suspend detection trivial | Reminders fire up to 10 s late |
 | `org.gnome.ScreenSaver` for lock state | One code path natively and in Flatpak | One extra `--talk-name` in the Flatpak |
+| Top-bar icon over D-Bus, without libappindicator | libappindicator needs GTK 3, which cannot share a process with GTK 4 | About 300 lines implementing two small D-Bus interfaces |
 | Single instance with command-line forwarding | `movebreak pause 30` talks to the running app and prints its answer | Commands need the app to be running |
 | Custom user installer (`scripts/install.py`) | Works without sudo, pip, venv or meson | Not a standard Python packaging flow; `pipx install --system-site-packages .` also works |

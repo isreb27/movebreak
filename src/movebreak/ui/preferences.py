@@ -31,7 +31,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
 
         page = Adw.PreferencesPage(title=_("General"), icon_name="preferences-system-symbolic")
 
-        startup = Adw.PreferencesGroup(title=_("Startup"))
+        startup = Adw.PreferencesGroup(title=_("Running in the Background"))
         self._autostart = Adw.SwitchRow(
             title=_("Start at Login"),
             subtitle=_("Reminders run in the background from the moment you log in"),
@@ -39,6 +39,22 @@ class PreferencesDialog(Adw.PreferencesDialog):
         )
         self._autostart.connect("notify::active", self._on_autostart_toggled)
         startup.add(self._autostart)
+
+        tray = application.tray
+        self._tray_icon = Adw.SwitchRow(
+            title=_("Show Icon in Top Bar"),
+            subtitle=(
+                _("Shows the next break and a pause menu")
+                if tray is not None and tray.host_available
+                else _(
+                    "Needs the “AppIndicator and KStatusNotifierItem Support” GNOME "
+                    "extension (included in Ubuntu)"
+                )
+            ),
+            active=application.store.tray_icon_enabled(),
+        )
+        self._tray_icon.connect("notify::active", self._on_tray_icon_toggled)
+        startup.add(self._tray_icon)
         page.add(startup)
 
         config = application.scheduler.config
@@ -79,6 +95,10 @@ class PreferencesDialog(Adw.PreferencesDialog):
         page.add(notifications)
 
         self.add(page)
+
+    def _on_tray_icon_toggled(self, row: Adw.SwitchRow, _param: object) -> None:
+        self._app.store.set_tray_icon_enabled(row.get_active())
+        self._app.refresh_tray()
 
     def _on_autostart_toggled(self, row: Adw.SwitchRow, _param: object) -> None:
         if self._applying_autostart:
