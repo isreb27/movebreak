@@ -350,3 +350,128 @@ def test_top_bar_icon_menu_and_process_name(isolated_home: Path) -> None:
             app.wait(timeout=10)
         host.terminate()
         host.wait(timeout=10)
+
+
+@skip_without_gui
+def test_reminder_priority_choice() -> None:
+    from gi.repository import Gio
+
+    from movebreak.core.models import Importance
+    from movebreak.desktop.notifier import choose_priority
+
+    normal, gentle = Importance.NORMAL, Importance.GENTLE
+    urgent = Gio.NotificationPriority.URGENT
+    assert choose_priority([normal], persistent=False) == Gio.NotificationPriority.NORMAL
+    assert choose_priority([normal], persistent=True) == urgent
+    assert choose_priority([gentle], persistent=True) == Gio.NotificationPriority.NORMAL
+    assert choose_priority([gentle, normal], persistent=True) == urgent
+
+
+@skip_without_gui
+def test_break_screen_flow(isolated_home: Path) -> None:
+    from gi.repository import GLib, Gtk
+
+    from movebreak.application import MovebreakApplication
+    from movebreak.core.models import Outcome, ReminderStyle
+    from movebreak.ui.break_screen import BreakScreen
+
+    app = MovebreakApplication(application_id="io.github.isreb27.Movebreak.BreakTest")
+    errors: list[object] = []
+    previous_hook = sys.excepthook
+    sys.excepthook = lambda *exc: errors.append(exc)
+
+    def break_screens() -> list[BreakScreen]:
+        return [w for w in app.get_windows() if isinstance(w, BreakScreen)]
+
+    def find_button(widget: Gtk.Widget, label: str) -> Gtk.Button:
+        child = widget.get_first_child()
+        while child is not None:
+            if isinstance(child, Gtk.Button) and child.get_label() == label:
+                return child
+            found = find_button(child, label) if child.get_first_child() else None
+            if found is not None:
+                return found
+            child = child.get_next_sibling()
+        return None  # type: ignore[return-value]
+
+    def make_due(activity_id: str) -> None:
+        timer = app.scheduler._timers[activity_id]
+        timer.elapsed, timer.snooze_target = 10_000, None
+        app.scheduler._last_prompt_at = None
+        app._on_tick()
+
+    def steps() -> Iterator[None]:
+        app.store.set_reminder_style(ReminderStyle.BREAK_SCREEN)
+        yield
+
+        # A due walk opens the break screen with the countdown.
+        make_due("walk")
+        yield
+        screens = break_screens()
+        assert len(screens) == 1
+        assert screens[0].remaining_s > 170  # 3-minute walk
+
+        # Snooze from the screen closes it and re-arms the walk.
+        find_button(screens[0], "Snooze 10 min").emit("clicked")
+        yield
+        assert break_screens() == []
+        assert app.scheduler.prompt is None
+        assert app.scheduler.remaining("walk") == pytest.approx(600, abs=15)
+
+        # The next one is answered with Done and counted.
+        make_due("walk")
+        yield
+        find_button(break_screens()[0], "Done").emit("clicked")
+        yield
+        assert break_screens() == []
+        assert app.today_counts()[Outcome.DONE] == 1
+
+        # A reminder that expires elsewhere closes the screen without an answer.
+        make_due("walk")
+        yield
+        assert len(break_screens()) == 1
+        app.pause(30)
+        yield
+        assert break_screens() == []
+
+        # Gentle reminders never take over the screen.
+        app.resume()
+        app.complete("walk")  # Pausing withdrew the walk reminder; clear it.
+        make_due("eyes")
+        yield
+        assert app.scheduler.prompt is not None and app.scheduler.prompt.gentle
+        assert break_screens() == []
+
+        # The preview opens a screen that leaves the schedule alone.
+        app.preview_reminder_style(ReminderStyle.BREAK_SCREEN)
+        yield
+        preview = break_screens()
+        assert len(preview) == 1
+        find_button(preview[0], "Skip").emit("clicked")
+        yield
+        assert break_screens() == []
+        assert app.today_counts()[Outcome.SKIPPED] == 0
+
+    iterator = steps()
+
+    def drive() -> bool:
+        try:
+            next(iterator)
+        except StopIteration:
+            app.quit()
+            return GLib.SOURCE_REMOVE
+        except BaseException as error:
+            import traceback
+
+            errors.append("".join(traceback.format_exception(error)))
+            app.quit()
+            return GLib.SOURCE_REMOVE
+        return GLib.SOURCE_CONTINUE
+
+    GLib.timeout_add(200, drive)
+    try:
+        status = app.run(["movebreak", "--background"])
+    finally:
+        sys.excepthook = previous_hook
+    assert errors == [], errors
+    assert status == 0

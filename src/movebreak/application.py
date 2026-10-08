@@ -18,6 +18,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import gi
 
@@ -28,12 +29,13 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from movebreak import __version__, config  # noqa: E402
 from movebreak.core.clock import SystemClock  # noqa: E402
-from movebreak.core.models import Outcome  # noqa: E402
+from movebreak.core.models import Outcome, ReminderStyle  # noqa: E402
 from movebreak.core.scheduler import (  # noqa: E402
     ActivityCompleted,
     AwayReason,
     Event,
     PauseChanged,
+    Prompt,
     PromptClosed,
     PromptOpened,
     Scheduler,
@@ -44,6 +46,7 @@ from movebreak.core.text import TipRotation, format_remaining, reminder_text  # 
 from movebreak.desktop import portal  # noqa: E402
 from movebreak.desktop.autostart import Autostart  # noqa: E402
 from movebreak.desktop.dbus import session_bus  # noqa: E402
+from movebreak.desktop.dnd import do_not_disturb_active  # noqa: E402
 from movebreak.desktop.notifier import Notifier  # noqa: E402
 from movebreak.desktop.presence import PresenceMonitor  # noqa: E402
 from movebreak.desktop.tray import MenuEntry, TrayIcon  # noqa: E402
@@ -53,6 +56,8 @@ log = logging.getLogger(__name__)
 
 ICONS_DIR = Path(__file__).resolve().parent / "icons"
 TICK_SECONDS = 10
+BREAK_SCREEN_CHECK_MS = 1500
+"""How long to wait before deciding GNOME kept the break screen in the background."""
 PAUSE_UNTIL_RESUMED = 0
 PAUSE_UNTIL_TOMORROW = -1
 DOCTOR_TIMEOUT_S = 60
@@ -120,6 +125,8 @@ class MovebreakApplication(Adw.Application):
         self._last_status: str | None = None
         self._presence: PresenceMonitor | None = None
         self.tray: TrayIcon | None = None
+        self._break_screen: Any = None  # ui.break_screen.BreakScreen, imported lazily
+        self._break_prompt_id: int | None = None
         self._doctor_command_line: Gio.ApplicationCommandLine | None = None
         self._doctor_timeout = 0
         self._test_callback: Callable[[str], None] | None = None
@@ -254,11 +261,10 @@ class MovebreakApplication(Adw.Application):
         now = self._clock.now()
         for event in events:
             if isinstance(event, PromptOpened):
-                title, body = reminder_text(event.prompt, self._tips)
-                snooze_minutes = round(self.scheduler.config.snooze_s / 60)
-                self.notifier.show_reminder(event.prompt, title, body, snooze_minutes)
+                self._show_reminder(event.prompt)
             elif isinstance(event, PromptClosed):
                 self.notifier.withdraw_reminder()
+                self._close_break_screen(event.prompt.id)
                 for activity in event.prompt.activities:
                     if activity.tracked:
                         self.store.log_outcome(
@@ -280,6 +286,98 @@ class MovebreakApplication(Adw.Application):
         self.refresh_tray()
         for listener in list(self._listeners):
             listener()
+
+    # ------------------------------------------------------------------
+    # Showing reminders
+    # ------------------------------------------------------------------
+
+    def _show_reminder(self, prompt: Prompt) -> None:
+        """Show a reminder in the configured style, respecting Do Not Disturb."""
+        title, body = reminder_text(prompt, self._tips)
+        snooze_minutes = round(self.scheduler.config.snooze_s / 60)
+        style = self.store.reminder_style()
+        if prompt.gentle or style is ReminderStyle.BANNER or do_not_disturb_active(self.bus):
+            self.notifier.show_reminder(prompt, title, body, snooze_minutes)
+            return
+        if style is ReminderStyle.PERSISTENT:
+            self.notifier.show_reminder(prompt, title, body, snooze_minutes, persistent=True)
+            return
+        self._open_break_screen(prompt, title, body, snooze_minutes)
+
+    def _open_break_screen(
+        self, prompt: Prompt, title: str, body: str, snooze_minutes: int
+    ) -> None:
+        from movebreak.ui.break_screen import BreakContent, BreakScreen
+
+        self._close_break_screen(None)
+        content = BreakContent(
+            title=" + ".join(a.name for a in prompt.activities),
+            tips=tuple(line for line in body.splitlines() if line),
+            icon=prompt.primary.icon,
+            duration_s=prompt.duration_s,
+            can_snooze=prompt.can_snooze,
+            snooze_minutes=snooze_minutes,
+        )
+
+        def answered(outcome: Outcome) -> None:
+            self._break_screen = None
+            self._break_prompt_id = None
+            self._handle(self.scheduler.respond(prompt.id, outcome))
+
+        screen = BreakScreen(self, content, answered)
+        self._break_screen = screen
+        self._break_prompt_id = prompt.id
+        screen.show_break()
+
+        def check_visible() -> bool:
+            # GNOME may keep a window from a background app behind others. If so, also
+            # send a banner that stays until answered; clicking it opens the screen.
+            if self._break_screen is screen and not screen.is_active():
+                log.info("Break screen not focused; sending a notification as well")
+                self.notifier.show_reminder(
+                    prompt,
+                    title,
+                    body,
+                    snooze_minutes,
+                    persistent=True,
+                    default_action="app.show-break-screen",
+                )
+            return GLib.SOURCE_REMOVE
+
+        GLib.timeout_add(BREAK_SCREEN_CHECK_MS, check_visible)
+
+    def _close_break_screen(self, prompt_id: int | None) -> None:
+        """Close the open break screen (only if it shows ``prompt_id``, when given)."""
+        screen = self._break_screen
+        if screen is None or (prompt_id is not None and prompt_id != self._break_prompt_id):
+            return
+        self._break_screen = None
+        self._break_prompt_id = None
+        screen.finish()
+
+    def _present_break_screen(self, *_args: object) -> None:
+        if self._break_screen is not None:
+            self._break_screen.present()
+        else:
+            self.activate()
+
+    def preview_reminder_style(self, style: ReminderStyle) -> None:
+        """Show a sample of ``style`` without touching the schedule (Preferences)."""
+        if style is ReminderStyle.BREAK_SCREEN:
+            from movebreak.ui.break_screen import BreakContent, BreakScreen
+
+            walk = self.store.activity("walk")
+            content = BreakContent(
+                title=walk.name,
+                tips=walk.tips[:1],
+                icon=walk.icon,
+                duration_s=20,
+                can_snooze=True,
+                snooze_minutes=round(self.scheduler.config.snooze_s / 60),
+            )
+            BreakScreen(self, content, lambda _outcome: None).show_break()
+            return
+        self.notifier.show_test(persistent=style is ReminderStyle.PERSISTENT)
 
     # ------------------------------------------------------------------
     # API used by the UI
@@ -402,6 +500,7 @@ class MovebreakApplication(Adw.Application):
             self.add_action(action)
 
         add("show-window", None, lambda *_args: self.activate())
+        add("show-break-screen", None, self._present_break_screen)
         add("quit", None, lambda *_args: self.quit())
         add("preferences", None, self._on_preferences)
         add("about", None, self._on_about)

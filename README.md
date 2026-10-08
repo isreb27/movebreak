@@ -37,6 +37,8 @@ see a physiotherapist.
   produces about four prompts an hour, two of them silent eye-break banners.
 - **Answer from the notification:** Done, Snooze or Skip. Gentle reminders disappear by
   themselves.
+- **Choose how reminders appear:** GNOME's standard banner, a banner that stays until you
+  answer it, or a full-screen **break screen** with the tips and a countdown.
 - **Custom activities** (push-ups, anything) with their own schedule, tips and icon.
 - **Profiles:** *Recommended*, *Light* and *Eyes first* built in, plus your own. Switch
   to a lighter schedule for a busy week and back again later.
@@ -130,7 +132,7 @@ you to click a button. A healthy report looks like this:
 ```text
 Movebreak doctor
 
-✓ Versions             Movebreak 0.2.0, Python 3.12.3, GTK 4.14.5, libadwaita 1.5.0, GLib 2.80.0
+✓ Versions             Movebreak 0.3.0, Python 3.12.3, GTK 4.14.5, libadwaita 1.5.0, GLib 2.80.0
 ✓ Session              GNOME on wayland, native install
 ✓ Desktop file         installed: notifications can be shown
 ✓ Idle detection       Mutter IdleMonitor reachable (idle for 0 s)

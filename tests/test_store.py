@@ -179,3 +179,11 @@ def test_tray_icon_preference(store: Store) -> None:
     assert store.tray_icon_enabled()
     store.set_tray_icon_enabled(False)
     assert not store.tray_icon_enabled()
+
+
+def test_reminder_style_preference(store: Store) -> None:
+    from movebreak.core.models import ReminderStyle
+
+    assert store.reminder_style() is ReminderStyle.BANNER
+    store.set_reminder_style(ReminderStyle.BREAK_SCREEN)
+    assert store.reminder_style() is ReminderStyle.BREAK_SCREEN

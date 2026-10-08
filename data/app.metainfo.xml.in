@@ -50,6 +50,12 @@
     <keyword>stretch</keyword>
   </keywords>
   <releases>
+    <release version="0.3.0" date="2026-10-08">
+      <description>
+        <p>Choose how reminders appear: GNOME's standard banner, a banner that stays until
+          you answer it, or a full-screen break screen with a countdown.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-10-07">
       <description>
         <p>Optional top-bar icon with the next break and a pause menu. The process now

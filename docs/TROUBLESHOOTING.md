@@ -148,6 +148,17 @@ Show Icon in Top Bar.
 (`python3 -m movebreak`); System Monitor, `top` and `ps -o comm` show **Movebreak**. To
 find it: `pgrep -a Movebreak`.
 
+**Reminders disappear too quickly.** That is GNOME, not your settings: GNOME Shell hides
+every normal banner after about 4 seconds (it waits while the pointer is over it, or until
+you come back if you were idle), and there is no setting to change that. The reminder stays
+in the notification list (<kbd>Super</kbd>+<kbd>V</kbd>). To keep it on screen, choose
+Preferences › Reminder style › **Banner that stays** or **Break screen**. To check for an
+extension that changes notifications: `gnome-extensions list --enabled`.
+
+**The break screen does not appear in front.** GNOME can keep windows from background apps
+behind the focused one. Movebreak then also sends a banner that stays; click it to bring the
+break screen up.
+
 **"Movebreak is not running" from the command line.** Start it with
 `movebreak --background` or open it from the app grid.
 

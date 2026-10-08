@@ -25,7 +25,7 @@ from movebreak.i18n import _
 REMINDER_ID = "reminder"
 TEST_ID = "test"
 
-_PRIORITY = {
+_PRIORITY: dict[Importance, Gio.NotificationPriority] = {
     # Low-priority notifications get no banner in GNOME, which would make
     # gentle reminders invisible; they stay normal and are simply buttonless.
     Importance.GENTLE: Gio.NotificationPriority.NORMAL,
@@ -34,20 +34,39 @@ _PRIORITY = {
 }
 
 
+def choose_priority(importances: list[Importance], *, persistent: bool) -> Gio.NotificationPriority:
+    """The notification priority for a reminder.
+
+    GNOME Shell hides every banner after 4 seconds except *urgent* ones, which
+    stay until they are answered. Gentle reminders never become urgent.
+    """
+    if persistent and any(i is not Importance.GENTLE for i in importances):
+        return Gio.NotificationPriority.URGENT
+    return max((_PRIORITY[i] for i in importances), key=int)
+
+
 class Notifier:
     def __init__(self, application: Gio.Application) -> None:
         self._app = application
 
-    def show_reminder(self, prompt: Prompt, title: str, body: str, snooze_minutes: int) -> None:
+    def show_reminder(
+        self,
+        prompt: Prompt,
+        title: str,
+        body: str,
+        snooze_minutes: int,
+        *,
+        persistent: bool = False,
+        default_action: str = "app.show-window",
+    ) -> None:
+        """Send the reminder. ``persistent`` keeps the banner on screen until answered."""
         notification = Gio.Notification.new(title)
         if body:
             notification.set_body(body)
-        priority = max(
-            (_PRIORITY[a.importance] for a in prompt.activities),
-            key=lambda p: int(p),
+        notification.set_priority(
+            choose_priority([a.importance for a in prompt.activities], persistent=persistent)
         )
-        notification.set_priority(priority)
-        notification.set_default_action("app.show-window")
+        notification.set_default_action(default_action)
         if not prompt.gentle:
             self._add_answer(notification, _("Done"), prompt.id, Outcome.DONE)
             if prompt.can_snooze:
@@ -59,11 +78,13 @@ class Notifier:
     def withdraw_reminder(self) -> None:
         self._app.withdraw_notification(REMINDER_ID)
 
-    def show_test(self) -> None:
+    def show_test(self, *, persistent: bool = False) -> None:
         """A notification with three buttons, used by Preferences and ``movebreak doctor``."""
         notification = Gio.Notification.new(_("Movebreak test notification"))
         notification.set_body(_("Click one of the buttons to check that they work."))
-        notification.set_priority(Gio.NotificationPriority.NORMAL)
+        notification.set_priority(
+            Gio.NotificationPriority.URGENT if persistent else Gio.NotificationPriority.NORMAL
+        )
         notification.set_default_action_and_target("app.test-response", GLib.Variant("s", "banner"))
         for label, target in ((_("Done"), "done"), (_("Snooze"), "snooze"), (_("Skip"), "skip")):
             notification.add_button_with_target(

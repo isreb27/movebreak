@@ -38,6 +38,19 @@ class Importance(StrEnum):
     """Like normal, sent with high priority so it is harder to miss."""
 
 
+class ReminderStyle(StrEnum):
+    """How normal and important reminders appear. Gentle ones are always a short banner."""
+
+    BANNER = "banner"
+    """GNOME's standard banner: hidden after a few seconds, kept in the notification list."""
+
+    PERSISTENT = "persistent"
+    """A banner that stays on screen until it is answered."""
+
+    BREAK_SCREEN = "break-screen"
+    """A full-screen break screen with the tip, a countdown and the answer buttons."""
+
+
 class Outcome(StrEnum):
     """How a reminder ended."""
 

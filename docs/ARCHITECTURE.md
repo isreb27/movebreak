@@ -37,10 +37,11 @@ src/movebreak/
 │   ├── presence.py      idle and screen-lock detection
 │   ├── notifier.py      reminders as notifications with buttons
 │   ├── tray.py          optional top-bar icon (StatusNotifierItem + dbusmenu)
+│   ├── dnd.py           whether Do Not Disturb is on
 │   ├── autostart.py     start at login (autostart file or Background portal)
 │   ├── portal.py        XDG desktop portal calls
 │   └── dbus.py          GDBus helpers
-├── ui/                  GTK 4 / libadwaita widgets, built in code
+├── ui/                  GTK 4 / libadwaita widgets, built in code (incl. the break screen)
 └── icons/               symbolic activity icons, loaded at start-up
 ```
 
@@ -98,5 +99,7 @@ without touching user data.
 | Tick every 10 s instead of exact timers | Simple, and makes suspend detection trivial | Reminders fire up to 10 s late |
 | `org.gnome.ScreenSaver` for lock state | One code path natively and in Flatpak | One extra `--talk-name` in the Flatpak |
 | Top-bar icon over D-Bus, without libappindicator | libappindicator needs GTK 3, which cannot share a process with GTK 4 | About 300 lines implementing two small D-Bus interfaces |
+| Break screen is a translucent full-screen window | Wayland lets no app position a window, so full screen is the only way to be centred | One monitor only; GNOME may keep it behind others, hence the banner fallback |
+| "Stay on screen" uses urgent notifications | The only priority GNOME Shell never hides automatically | Urgent also breaks through Do Not Disturb, so Movebreak checks it first |
 | Single instance with command-line forwarding | `movebreak pause 30` talks to the running app and prints its answer | Commands need the app to be running |
 | Custom user installer (`scripts/install.py`) | Works without sudo, pip, venv or meson | Not a standard Python packaging flow; `pipx install --system-site-packages .` also works |

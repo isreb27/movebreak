@@ -31,6 +31,7 @@ from movebreak.core.models import (
     Outcome,
     PlannedActivity,
     Profile,
+    ReminderStyle,
 )
 from movebreak.core.scheduler import SchedulerConfig
 
@@ -82,6 +83,7 @@ _PREF_PAUSE = "pause"
 _PREF_SCHEDULER = "scheduler"
 _PREF_AUTOSTART = "autostart"
 _PREF_TRAY_ICON = "tray_icon"
+_PREF_REMINDER_STYLE = "reminder_style"
 
 
 class StoreError(Exception):
@@ -563,6 +565,15 @@ class Store:
 
     def set_autostart_requested(self, enabled: bool) -> None:
         self._set_pref(_PREF_AUTOSTART, enabled)
+
+    def reminder_style(self) -> ReminderStyle:
+        try:
+            return ReminderStyle(self._get_pref(_PREF_REMINDER_STYLE, ReminderStyle.BANNER.value))
+        except ValueError:
+            return ReminderStyle.BANNER
+
+    def set_reminder_style(self, style: ReminderStyle) -> None:
+        self._set_pref(_PREF_REMINDER_STYLE, style.value)
 
     def tray_icon_enabled(self) -> bool:
         """Whether to show the top-bar icon (on by default)."""

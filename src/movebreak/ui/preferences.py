@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from gi.repository import Adw, GLib, Gtk
 
+from movebreak.core.models import ReminderStyle
 from movebreak.core.scheduler import SchedulerConfig
 from movebreak.i18n import _
 
@@ -21,6 +22,26 @@ def _minutes_row(title: str, subtitle: str, low: int, high: int, value: float) -
     row.set_subtitle(subtitle)
     row.set_value(round(value / 60))
     return row
+
+
+def _style_choices() -> list[tuple[ReminderStyle, str, str]]:
+    return [
+        (
+            ReminderStyle.BANNER,
+            _("Standard banner"),
+            _("Disappears after a few seconds; stays in the notification list"),
+        ),
+        (
+            ReminderStyle.PERSISTENT,
+            _("Banner that stays"),
+            _("Stays on screen until you choose Done, Snooze or Skip"),
+        ),
+        (
+            ReminderStyle.BREAK_SCREEN,
+            _("Break screen"),
+            _("Dims the whole screen and shows the break with a countdown"),
+        ),
+    ]
 
 
 class PreferencesDialog(Adw.PreferencesDialog):
@@ -58,6 +79,32 @@ class PreferencesDialog(Adw.PreferencesDialog):
         page.add(startup)
 
         config = application.scheduler.config
+        appearance = Adw.PreferencesGroup(
+            title=_("How Reminders Appear"),
+            description=_(
+                "Applies to normal and important activities. Gentle ones, like eye breaks, "
+                "stay short banners. During Do Not Disturb every reminder is a quiet banner."
+            ),
+        )
+        self._style = Adw.ComboRow(
+            title=_("Reminder style"),
+            model=Gtk.StringList.new([label for _style, label, _hint in _style_choices()]),
+        )
+        current = application.store.reminder_style()
+        self._style.set_selected(
+            next(i for i, (style, _l, _h) in enumerate(_style_choices()) if style is current)
+        )
+        self._style.connect("notify::selected", self._on_style_changed)
+        appearance.add(self._style)
+        preview = Adw.ActionRow(
+            title=_("Preview"), subtitle=_("Show a sample reminder now"), activatable=True
+        )
+        preview.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
+        preview.connect("activated", self._on_preview)
+        appearance.add(preview)
+        self._on_style_changed(self._style, None)
+        page.add(appearance)
+
         timing = Adw.PreferencesGroup(
             title=_("Reminders"),
             description=_("These apply to every profile."),
@@ -95,6 +142,18 @@ class PreferencesDialog(Adw.PreferencesDialog):
         page.add(notifications)
 
         self.add(page)
+
+    def _selected_style(self) -> ReminderStyle:
+        return _style_choices()[self._style.get_selected()][0]
+
+    def _on_style_changed(self, row: Adw.ComboRow, _param: object) -> None:
+        style, _label, hint = _style_choices()[row.get_selected()]
+        row.set_subtitle(hint)
+        if self._app.store.reminder_style() is not style:
+            self._app.store.set_reminder_style(style)
+
+    def _on_preview(self, _row: Adw.ActionRow) -> None:
+        self._app.preview_reminder_style(self._selected_style())
 
     def _on_tray_icon_toggled(self, row: Adw.SwitchRow, _param: object) -> None:
         self._app.store.set_tray_icon_enabled(row.get_active())

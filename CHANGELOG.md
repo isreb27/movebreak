@@ -6,6 +6,17 @@ All notable changes are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-08
+
+### Added
+
+- Preferences › How Reminders Appear: *Standard banner*, *Banner that stays* (until you
+  choose Done, Snooze or Skip) or *Break screen* (full screen, dimmed, with the tips, a
+  countdown of the break length and the answer buttons), with a Preview.
+- If GNOME keeps the break screen behind other windows, a banner that stays is sent too;
+  clicking it brings the break screen up.
+- During Do Not Disturb every reminder falls back to a quiet standard banner.
+
 ## [0.2.0] - 2026-10-07
 
 ### Added
@@ -41,6 +52,7 @@ All notable changes are documented here. The format follows
 - `movebreak doctor` system checks, including an interactive notification test.
 - User installer that needs no administrator rights, and a Flatpak manifest.
 
-[Unreleased]: https://github.com/isreb27/movebreak/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/isreb27/movebreak/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/isreb27/movebreak/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/isreb27/movebreak/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/isreb27/movebreak/releases/tag/v0.1.0
